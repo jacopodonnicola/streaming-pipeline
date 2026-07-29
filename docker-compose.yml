@@ -62,7 +62,7 @@ services:
       - pipeline-net
     entrypoint: >
       /bin/sh -c "
-      rpk topic create events --brokers redpanda:9092 --partitions 3 --replicas 1 &&
+      rpk topic create events --brokers redpanda:9092 --partitions 3 --replicas 1 || true &&
       echo 'Topic events pronto'
       "
 
@@ -101,3 +101,40 @@ services:
       mc anonymous set download local/pipeline-data &&
       echo 'Bucket pipeline-data pronto'
       "
+
+  producer:
+    build:
+      context: .
+      dockerfile: ingestion/producer/Dockerfile
+    container_name: producer
+    environment:
+      KAFKA_BROKER: redpanda:9092
+      KAFKA_TOPIC: events
+    ports:
+      - "8000:8000"
+    networks:
+      - pipeline-net
+    depends_on:
+      redpanda:
+        condition: service_healthy
+      redpanda-init:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  load-generator:
+    build:
+      context: .
+      dockerfile: ingestion/load_generator/Dockerfile
+    container_name: load-generator
+    environment:
+      PRODUCER_URL: http://producer:8000
+      EVENTS_PER_SECOND: "2"
+    networks:
+      - pipeline-net
+    depends_on:
+      producer:
+        condition: service_healthy

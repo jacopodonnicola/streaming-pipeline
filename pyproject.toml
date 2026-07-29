@@ -9,6 +9,10 @@ dependencies = [
 ]
 
 [dependency-groups]
+load_generator = [
+    "requests>=2.32.0",
+    "faker>=30.0.0",
+]
 producer = [
     "fastapi>=0.115.0",
     "uvicorn[standard]>=0.32.0",
