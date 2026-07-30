@@ -1216,6 +1216,7 @@ consumer = [
     { name = "minio" },
     { name = "pandas" },
     { name = "pyarrow" },
+    { name = "pydantic" },
 ]
 load-generator = [
     { name = "faker" },
@@ -1246,6 +1247,7 @@ consumer = [
     { name = "minio", specifier = ">=7.2.0" },
     { name = "pandas", specifier = ">=2.2.0" },
     { name = "pyarrow", specifier = ">=17.0.0" },
+    { name = "pydantic", specifier = ">=2.9.0" },
 ]
 load-generator = [
     { name = "faker", specifier = ">=30.0.0" },
