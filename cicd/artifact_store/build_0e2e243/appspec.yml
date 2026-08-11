@@ -1,0 +1,19 @@
+version: 0.0
+os: linux
+
+hooks:
+  ApplicationStop:
+    - location: scripts/stop_container.sh
+      timeout: 30
+
+  AfterInstall:
+    - location: scripts/pull_image.sh
+      timeout: 30
+
+  ApplicationStart:
+    - location: scripts/start_container.sh
+      timeout: 30
+
+  ValidateService:
+    - location: scripts/validate_service.sh
+      timeout: 30

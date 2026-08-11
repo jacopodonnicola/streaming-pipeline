@@ -2,6 +2,7 @@ name: streaming-pipeline
 
 networks:
   pipeline-net:
+    name: pipeline-net
     driver: bridge
 
 volumes:

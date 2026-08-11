@@ -1,0 +1,61 @@
+version: 1
+
+# Formato ispirato al buildspec.yml di AWS CodeBuild: 4 fasi eseguite in ordine.
+# In AWS, queste fasi sono interpretate nativamente dall'agente CodeBuild
+# (parte del build environment, non del vostro codice). Nella nostra
+# simulazione locale, lo script cicd/builder/run_buildspec.sh fa quel lavoro
+# a mano: legge questo file con `yq` ed esegue i comandi di ogni fase in ordine.
+
+phases:
+  install:
+    commands:
+      - echo "[install] Verifico che il client Docker sia disponibile"
+      - docker version
+
+  pre_build:
+    commands:
+      - echo "[pre_build] Calcolo il tag immagine dal commit Git corrente"
+      - export IMAGE_TAG=$(git rev-parse --short HEAD 2>/dev/null || echo "local")
+      - echo "IMAGE_TAG=${IMAGE_TAG}"
+
+  build:
+    commands:
+      - echo "[build] Costruisco l'immagine load-generator"
+      - docker build -t streaming-pipeline/load-generator:${IMAGE_TAG} -f ingestion/load_generator/Dockerfile .
+
+      - echo "[build] Costruisco l'immagine producer"
+      - docker build -t streaming-pipeline/producer:${IMAGE_TAG} -f ingestion/producer/Dockerfile .
+
+      - echo "[build] Costruisco l'immagine consumer"
+      - docker build -t streaming-pipeline/consumer:${IMAGE_TAG} -f storage/consumer/Dockerfile .
+
+  post_build:
+    commands:
+      # Smoke check sulle immagini appena costruite (avrebbe intercettato
+      # in anticipo il bug reale già riscontrato: pydantic mancante nel
+      # gruppo consumer).
+      - echo "[post_build] Smoke check sulle immagini appena costruite"
+      - docker run --rm streaming-pipeline/load-generator:${IMAGE_TAG} python -c "import requests, faker; print('load-generator OK')"
+      - docker run --rm streaming-pipeline/producer:${IMAGE_TAG} python -c "import fastapi, confluent_kafka, pydantic; print('producer OK')"
+      - docker run --rm streaming-pipeline/consumer:${IMAGE_TAG} python -c "import confluent_kafka, pyarrow, minio, pydantic; print('consumer OK')"
+
+      # Preparo l'artifact bundle per il deploy: equivalente locale dello
+      # zip che in AWS CodeBuild carica su S3 (artifact store di
+      # CodePipeline). Contiene appspec.yml + script hook + riferimento
+      # al tag immagine appena buildato, in una cartella immutabile
+      # identificata dal tag — non tocca la deployments_queue, quello
+      # è compito di pipeline.sh.
+      - echo "[post_build] Preparo artifact bundle per il deploy"
+      - mkdir -p cicd/artifact_store/build_${IMAGE_TAG}
+      - cp cicd/deployer/appspec.yml cicd/artifact_store/build_${IMAGE_TAG}/
+      - cp -r cicd/deployer/scripts cicd/artifact_store/build_${IMAGE_TAG}/
+      - echo "{\"IMAGE_TAG\":\"${IMAGE_TAG}\"}" > cicd/artifact_store/build_${IMAGE_TAG}/image_tag.json
+
+      - echo "[post_build] Build completata. IMAGE_TAG=${IMAGE_TAG}"
+
+artifacts:
+  files:
+    - appspec.yml
+    - cicd/deployer/scripts/**/*
+    - image_tag.json
+  discard-paths: no
