@@ -1,0 +1,33 @@
+name: streaming-pipeline-cicd
+
+services:
+
+  builder:
+    build:
+      context: ..
+      dockerfile: cicd/builder/Dockerfile.builder
+    container_name: cicd-builder
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ..:/repo
+    working_dir: /repo
+    # Nessun `restart`, nessun `depends_on`: è un job puntuale,
+    # lanciato on-demand con `docker compose run builder`, non un
+    # servizio che deve stare sempre attivo — coerente con CodeBuild,
+    # che alloca capacità solo per la durata del job.
+
+  deployer:
+    build:
+      context: ..
+      dockerfile: cicd/deployer/Dockerfile.deployer
+    container_name: cicd-deployer
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ..:/repo
+    working_dir: /repo
+    restart: unless-stopped
+    # Qui invece il restart ha senso: rispecchia l'agente CodeDeploy,
+    # un demone che gira in continuazione facendo polling — non un job
+    # puntuale come il builder. Nessuna `network: pipeline-net`: il
+    # deployer parla con i container applicativi tramite `docker`
+    # CLI/socket, non ha bisogno di essere sulla rete applicativa.

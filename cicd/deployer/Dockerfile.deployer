@@ -1,0 +1,15 @@
+FROM docker:24-cli
+
+# Stesso principio del builder: DooD, non DinD. Questa immagine contiene
+# solo il client `docker` + jq/yq per leggere appspec.yml e i file JSON
+# della coda — il lavoro vero (stop/pull/start container) lo fa parlando
+# col daemon dell'host tramite il socket montato a runtime.
+
+RUN apk add --no-cache bash yq jq
+
+WORKDIR /repo
+
+COPY cicd/deployer/run_appspec.sh /usr/local/bin/run_appspec.sh
+RUN chmod +x /usr/local/bin/run_appspec.sh
+
+ENTRYPOINT ["/usr/local/bin/run_appspec.sh"]
