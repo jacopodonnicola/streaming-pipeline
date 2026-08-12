@@ -8,11 +8,11 @@ Pipeline: LoadGenerator → Redpanda → Producer HTTP → Consumer → MinIO (P
 - `storage` — configurazione MinIO, init bucket
 - `shared` — config, schemi e utility condivisi tra servizi
 
-## Setup locale (dev)
+### Setup locale (dev)
 uv sync
 
-## Avvio stack
+### Avvio stack
 docker compose -f docker-compose.yml up -d
 
-# Log combinati dei servizi applicativi 
+### Log combinati dei servizi applicativi 
 docker compose logs -f producer load-generator consumer
